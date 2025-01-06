@@ -1,48 +1,39 @@
 package com.example.workoutplanner;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.cardview.widget.CardView;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Find all CardViews and set click listeners
-        setupClickListeners();
-    }
-
-    private void setupClickListeners() {
-        // Find all category CardViews (you'll need to add IDs to them in the layout)
-        CardView cardioCard = findViewById(R.id.cardioCard);
-        CardView strengthCard = findViewById(R.id.strengthCard);
-        CardView flexibilityCard = findViewById(R.id.flexibilityCard);
-        CardView hiitCard = findViewById(R.id.hiitCard);
-
-        View.OnClickListener categoryClickListener = new View.OnClickListener() {
+        CardView plannerButton = findViewById(R.id.myPlanButton);
+        plannerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String category = "";
-                if (v == cardioCard) category = "Cardio";
-                else if (v == strengthCard) category = "Strength";
-                else if (v == flexibilityCard) category = "Flexibility";
-                else if (v == hiitCard) category = "HIIT";
-
-                Toast.makeText(MainActivity.this,
-                        category + " workouts coming soon!",
-                        Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(MainActivity.this, HomeActivity.class);
+                startActivity(intent);
             }
-        };
+        });
+        RecyclerView recyclerView = findViewById(R.id.successStoriesRecyclerView);
 
-        // Set the click listener for each card
-        cardioCard.setOnClickListener(categoryClickListener);
-        strengthCard.setOnClickListener(categoryClickListener);
-        flexibilityCard.setOnClickListener(categoryClickListener);
-        hiitCard.setOnClickListener(categoryClickListener);
+        List<SuccessStory> successStories = new ArrayList<>();
+        successStories.add(new SuccessStory("John's Transformation", "Lost 20 kg in 3 months.", R.drawable.sample_img));
+        successStories.add(new SuccessStory("Emma's Journey", "Ran her first marathon.", R.drawable.sample_img));
+        successStories.add(new SuccessStory("Mark's Growth", "Gained 10 kg of muscle.", R.drawable.sample_img));
+
+        SuccessStoriesAdapter adapter = new SuccessStoriesAdapter(successStories);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        recyclerView.setAdapter(adapter);
     }
 }
