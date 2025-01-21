@@ -12,6 +12,7 @@ import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -57,6 +58,14 @@ public class SaveStoriesActivity extends AppCompatActivity {
 
         // Find SD card ID when activity starts
         findSdCardId();
+        Button backButton=findViewById(R.id.backButton);
+        backButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(SaveStoriesActivity.this, HomeActivity.class);
+                startActivity(intent);
+            }
+        });
     }
 
     private void findSdCardId() {
