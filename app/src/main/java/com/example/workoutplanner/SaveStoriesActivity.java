@@ -1,19 +1,21 @@
 package com.example.workoutplanner;
 
-import static com.example.workoutplanner.R.id.statuText;
-
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.DocumentsContract;
+import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,17 +32,60 @@ import java.util.Locale;
 public class SaveStoriesActivity extends AppCompatActivity {
     private static final String TAG = "SaveStoriesActivity";
     private ActivityResultLauncher<Uri> openDocumentTreeLauncher;
+    private ActivityResultLauncher<String> imagePickerLauncher;
     private String sdCardId = null;
-    private TextView textViewStatus; // Changed from statusText to textViewStatus
+    private TextView textViewStatus;
+    private ImageView imagePreview;
+    private Uri selectedImageUri;
 
-    @SuppressLint("MissingInflatedId")
+    private void checkPermissionAndOpenPicker() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // For Android 11 (API 30) and above
+            if (!Environment.isExternalStorageManager()) {
+                try {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                    startActivity(intent);
+                    updateStatus("Please grant all files access permission");
+                    return;
+                } catch (Exception e) {
+                    Log.e(TAG, "Error requesting permission", e);
+                    updateStatus("Error requesting permission: " + e.getMessage());
+                    return;
+                }
+            }
+        }
+
+        // If we have SD card ID, try to create a specific URI for it
+        if (sdCardId != null) {
+            Uri sdCardUri = Uri.parse("content://com.android.externalstorage.documents/tree/" + sdCardId);
+            openDocumentTreeLauncher.launch(sdCardUri);
+        } else {
+            // If no SD card ID, just launch the picker normally
+            openDocumentTreeLauncher.launch(null);
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_save_stories);
 
-        textViewStatus = findViewById(statuText);
+        textViewStatus = findViewById(R.id.statuText);
         Button saveButton = findViewById(R.id.saveButton);
+        Button selectImageButton = findViewById(R.id.selectImageButton);
+        imagePreview = findViewById(R.id.imagePreview);
+
+        // Initialize image picker launcher
+        imagePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                uri -> {
+                    if (uri != null) {
+                        selectedImageUri = uri;
+                        imagePreview.setImageURI(uri);
+                        imagePreview.setVisibility(View.VISIBLE);
+                    }
+                }
+        );
 
         // Initialize document tree launcher
         openDocumentTreeLauncher = registerForActivityResult(
@@ -52,105 +97,82 @@ public class SaveStoriesActivity extends AppCompatActivity {
                     } else {
                         updateStatus("No folder selected");
                     }
-                });
+                }
+        );
 
-        saveButton.setOnClickListener(v -> checkPermissionAndOpenPicker());
-
-        // Find SD card ID when activity starts
-        findSdCardId();
-        Button backButton=findViewById(R.id.backButton);
-        backButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(SaveStoriesActivity.this, HomeActivity.class);
-                startActivity(intent);
+        selectImageButton.setOnClickListener(v -> openImagePicker());
+        saveButton.setOnClickListener(v -> {
+            if (selectedImageUri != null) {
+                checkPermissionAndOpenPicker();
+            } else {
+                updateStatus("Please select an image first");
             }
+        });
+
+        findSdCardId();
+
+        Button backButton = findViewById(R.id.backButton);
+        backButton.setOnClickListener(v -> {
+            Intent intent = new Intent(SaveStoriesActivity.this, MainActivity.class);
+            startActivity(intent);
         });
     }
 
+    @SuppressLint("NewApi")
     private void findSdCardId() {
         try {
-            String[] projection = {"root_id"}; // Using the actual column name instead of constant
-            Uri rootsUri = DocumentsContract.buildRootsUri("com.android.externalstorage.documents");
+            Uri rootUri = MediaStore.getExternalVolumeNames(this).stream()
+                    .filter(volume -> !MediaStore.VOLUME_EXTERNAL_PRIMARY.equals(volume))
+                    .findFirst()
+                    .map(volume -> MediaStore.Files.getContentUri(volume))
+                    .orElse(null);
 
-            try (Cursor cursor = getContentResolver().query(rootsUri, projection, null, null, null)) {
-                if (cursor != null && cursor.moveToFirst()) {
-                    do {
-                        String documentId = cursor.getString(0);
-                        Log.d(TAG, "Storage ID found: " + documentId);
-                        if (!documentId.equals("primary")) {
-                            sdCardId = documentId;
-                            Log.d(TAG, "SD Card ID found: " + sdCardId);
-                            break;
-                        }
-                    } while (cursor.moveToNext());
+            if (rootUri != null) {
+                // Extract the volume name from the URI
+                String path = rootUri.getPath();
+                if (path != null) {
+                    String[] segments = path.split("/");
+                    if (segments.length > 0) {
+                        sdCardId = segments[segments.length - 1] + ":";
+                        Log.d(TAG, "Found SD card ID: " + sdCardId);
+                    }
                 }
+            } else {
+                Log.d(TAG, "No external SD card found");
             }
         } catch (Exception e) {
             Log.e(TAG, "Error finding SD card", e);
         }
     }
 
-    private void checkPermissionAndOpenPicker() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                try {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                    startActivity(intent);
-                    updateStatus("Please grant storage permission");
-                } catch (Exception e) {
-                    Log.e(TAG, "Error requesting permission", e);
-                    updateStatus("Error requesting permission");
-                }
-            } else {
-                openFilePickerForSDCard();
-            }
-        } else {
-            openFilePickerForSDCard();
-        }
+    private void openImagePicker() {
+        imagePickerLauncher.launch("image/*");
     }
 
-    private void openFilePickerForSDCard() {
-        try {
-            Uri initialUri = null;
-            if (sdCardId != null) {
-                initialUri = DocumentsContract.buildRootUri(
-                        "com.android.externalstorage.documents", sdCardId);
-                Log.d(TAG, "Opening picker with SD card URI: " + initialUri);
-            }
-            openDocumentTreeLauncher.launch(initialUri);
-        } catch (Exception e) {
-            Log.e(TAG, "Error launching picker", e);
-            updateStatus("Error opening file picker");
-        }
-    }
+    // [Previous findSdCardId and checkPermissionAndOpenPicker methods remain the same]
 
     private void handleSelectedDirectory(Uri uri) {
         try {
-            // Take persistable permissions
             final int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION |
                     Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
             getContentResolver().takePersistableUriPermission(uri, takeFlags);
 
-            // Create a timestamped filename
             String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
                     .format(new Date());
-            String filename = "stories_" + timestamp + ".txt";
+            String filename = "image_" + timestamp + ".jpg";
 
-            // Get the document tree URI
             Uri docUri = DocumentsContract.buildDocumentUriUsingTree(uri,
                     DocumentsContract.getTreeDocumentId(uri));
 
-            // Create the file
             Uri fileUri = DocumentsContract.createDocument(
                     getContentResolver(),
                     docUri,
-                    "text/plain",
+                    "image/jpeg",
                     filename
             );
 
             if (fileUri != null) {
-                saveContentToFile(fileUri);
+                saveImageToFile(fileUri);
             } else {
                 updateStatus("Failed to create file");
             }
@@ -160,22 +182,19 @@ public class SaveStoriesActivity extends AppCompatActivity {
         }
     }
 
-    private void saveContentToFile(Uri fileUri) {
+    private void saveImageToFile(Uri destinationUri) {
         try {
-            String content = "Story 1: John's Journey\n" +
-                    "Story 2: Emma's Challenge\n" +
-                    "Created on: " + new Date().toString() + "\n";
-
-            try (OutputStream outputStream = getContentResolver().openOutputStream(fileUri, "w")) {
-                if (outputStream != null) {
-                    outputStream.write(content.getBytes());
-                    outputStream.flush();
-                    updateStatus("File saved successfully!\nLocation: " + fileUri.getPath());
-                }
+            OutputStream outputStream = getContentResolver().openOutputStream(destinationUri, "w");
+            if (outputStream != null) {
+                // Copy the selected image to the destination
+                getContentResolver().openInputStream(selectedImageUri).transferTo(outputStream);
+                outputStream.flush();
+                outputStream.close();
+                updateStatus("Image saved successfully!\nLocation: " + destinationUri.getPath());
             }
         } catch (IOException e) {
-            Log.e(TAG, "Error saving file", e);
-            updateStatus("Error saving file: " + e.getMessage());
+            Log.e(TAG, "Error saving image", e);
+            updateStatus("Error saving image: " + e.getMessage());
         }
     }
 
