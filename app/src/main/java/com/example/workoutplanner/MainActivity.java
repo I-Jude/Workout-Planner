@@ -35,5 +35,14 @@ public class MainActivity extends AppCompatActivity {
         SuccessStoriesAdapter adapter = new SuccessStoriesAdapter(successStories);
         recyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         recyclerView.setAdapter(adapter);
+
+        CardView saveStoriesButton = findViewById(R.id.saveStoriesButton);
+        saveStoriesButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, SaveStoriesActivity.class);
+                startActivity(intent);
+            }
+        });
     }
 }
