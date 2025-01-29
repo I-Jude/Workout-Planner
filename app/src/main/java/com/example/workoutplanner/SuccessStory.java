@@ -1,14 +1,20 @@
 package com.example.workoutplanner;
 
 public class SuccessStory {
+    private final String id;
     private final String title;
     private final String description;
-    private final int imageResId;
+    private final byte[] image;
 
-    public SuccessStory(String title, String description, int imageResId) {
+    public SuccessStory(String id, String title, String description, byte[] image) {
+        this.id = id;
         this.title = title;
         this.description = description;
-        this.imageResId = imageResId;
+        this.image = image;
+    }
+
+    public String getId() {
+        return id;
     }
 
     public String getTitle() {
@@ -19,7 +25,7 @@ public class SuccessStory {
         return description;
     }
 
-    public int getImageResId() {
-        return imageResId;
+    public byte[] getImage() {
+        return image;
     }
 }

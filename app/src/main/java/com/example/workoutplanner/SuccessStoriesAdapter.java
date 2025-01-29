@@ -1,5 +1,7 @@
 package com.example.workoutplanner;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,7 +35,16 @@ public class SuccessStoriesAdapter extends RecyclerView.Adapter<SuccessStoriesAd
         SuccessStory story = successStories.get(position);
         holder.title.setText(story.getTitle());
         holder.description.setText(story.getDescription());
-        holder.image.setImageResource(story.getImageResId());
+
+        // Convert the byte[] image to a Bitmap and set it to the ImageView
+        byte[] imageBytes = story.getImage();
+        if (imageBytes != null && imageBytes.length > 0) {
+            Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+            holder.image.setImageBitmap(bitmap);
+        } else {
+            // Set a placeholder image if no image is available
+            holder.image.setImageResource(R.drawable.placeholder_image); // Replace with your placeholder image resource
+        }
     }
 
     @Override
